@@ -1,0 +1,15 @@
+{
+  "users": [
+    {
+      "name": "aaa",
+      "password": "a123456",
+      "validFlag": true
+    },
+    {
+      "name": "bbb",
+      "password": "b123456",
+      "validFlag": true
+    }
+  ],
+  "filePath": "E:\\download"
+}
