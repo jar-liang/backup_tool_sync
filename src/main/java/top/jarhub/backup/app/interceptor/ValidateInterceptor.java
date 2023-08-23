@@ -8,7 +8,6 @@ import top.jarhub.backup.app.pojo.User;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,9 +22,6 @@ public class ValidateInterceptor implements HandlerInterceptor {
             return false;
         }
         LOG.info("request path: {}", servletPath);
-        if (servletPath.startsWith("/test")) {
-            return true;
-        }
         Map<String, String[]> parameterMap = request.getParameterMap();
         if (parameterMap.containsKey("userName") && parameterMap.containsKey("password")) {
             String[] userNames = parameterMap.get("userName");
