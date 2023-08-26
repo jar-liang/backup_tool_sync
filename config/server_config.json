@@ -11,5 +11,11 @@
       "validFlag": true
     }
   ],
-  "filePath": "E:\\download"
+  "filePath": "/usr/xxx/xxx",
+  "source_dir": "/usr/xxx",
+  "target_dir": "/usr/xxx/xxx",
+  "process_tip": "/usr/xxx/xxx",
+  "zip_dir": "/usr/xxx/xxx",
+  "mongodb_backup_dir": "/usr/xxx/xxx",
+  "execute_time": "12:22:0"
 }

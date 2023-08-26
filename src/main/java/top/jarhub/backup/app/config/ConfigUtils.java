@@ -18,8 +18,68 @@ public final class ConfigUtils {
     private static final Logger LOG = LoggerFactory.getLogger(ConfigUtils.class);
     private static List<User> users = null;
     private static String filePath = null;
+    private static String sourceDir = null;
+    private static String targetDir = null;
+    private static String processTipPath = null;
+    private static String zipSavePath = null;
+    private static String mongoDbSavePath = null;
+    private static String executeTime = null;
 
     private ConfigUtils() {}
+
+    public synchronized static String getExecuteTime() throws IOException {
+        if (executeTime == null) {
+            String configStrings = getConfigStrings();
+            JSONObject jsonObject = JSONObject.parseObject(configStrings);
+            executeTime = String.valueOf(Objects.requireNonNull(jsonObject.get("execute_time"), "execute_time not configured"));
+        }
+        return executeTime;
+    }
+
+    public synchronized static String getMongoDbSavePath() throws IOException {
+        if (mongoDbSavePath == null) {
+            String configStrings = getConfigStrings();
+            JSONObject jsonObject = JSONObject.parseObject(configStrings);
+            mongoDbSavePath = String.valueOf(Objects.requireNonNull(jsonObject.get("mongodb_backup_dir"), "mongodb_backup_dir not configured"));
+        }
+        return mongoDbSavePath;
+    }
+
+    public synchronized static String getZipSavePath() throws IOException {
+        if (zipSavePath == null) {
+            String configStrings = getConfigStrings();
+            JSONObject jsonObject = JSONObject.parseObject(configStrings);
+            zipSavePath = String.valueOf(Objects.requireNonNull(jsonObject.get("zip_dir"), "zip_dir not configured"));
+        }
+        return zipSavePath;
+    }
+
+    public synchronized static String getProcessTipPath() throws IOException {
+        if (processTipPath == null) {
+            String configStrings = getConfigStrings();
+            JSONObject jsonObject = JSONObject.parseObject(configStrings);
+            processTipPath = String.valueOf(Objects.requireNonNull(jsonObject.get("process_tip"), "process_tip not configured"));
+        }
+        return processTipPath;
+    }
+
+    public synchronized static String getTargetDir() throws IOException {
+        if (targetDir == null) {
+            String configStrings = getConfigStrings();
+            JSONObject jsonObject = JSONObject.parseObject(configStrings);
+            targetDir = String.valueOf(Objects.requireNonNull(jsonObject.get("target_dir"), "target_dir not configured"));
+        }
+        return targetDir;
+    }
+
+    public synchronized static String getSourceDir() throws IOException {
+        if (sourceDir == null) {
+            String configStrings = getConfigStrings();
+            JSONObject jsonObject = JSONObject.parseObject(configStrings);
+            sourceDir = String.valueOf(Objects.requireNonNull(jsonObject.get("source_dir"), "source_dir not configured"));
+        }
+        return sourceDir;
+    }
 
     public synchronized static String getFilePath() throws IOException{
         if (filePath == null) {
