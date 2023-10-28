@@ -28,18 +28,26 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.MessageDigest;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class SyncClient {
     private static final Logger LOG = LoggerFactory.getLogger(SyncClient.class);
@@ -73,15 +81,104 @@ public class SyncClient {
         // 定时每天几点执行
         long secondGap = getSecondGap(config.getInt("hour", 4), config.getInt("minute", 0), config.getInt("second", 0));
         SyncClient syncClient = new SyncClient();
+        String localSavePath = config.getString("localSavePath", "save");
         executorService.scheduleAtFixedRate(() -> {
             try {
                 syncClient.listFileAndDownload(listFilesUri, downloadUri, config);
+                // 6.删除n久之前的备份文件和过程记录文件
+                // md5摘要判断，取最新的一份跟之前的对比，一致的除了是每月1号和15号的之外就删除。另外如果是不一样但是是最新文件的5天前的文件，也删除
+                deleteHistoryFiles(localSavePath, "pic_backup_");
+                deleteHistoryFiles(localSavePath, "mongodb_backup_");
             } catch (Exception e) {
                 LOG.error("execute schedule task got exception, error message: {}", e.getMessage());
             }
         }, secondGap, 24 * 3600, TimeUnit.SECONDS);
 
         LOG.info("sync client started!");
+    }
+
+    private static void deleteHistoryFiles(String path, String filterKeyWord) {
+        File file = new File(path);
+        if (file.isDirectory()) {
+            File[] zipFiles = file.listFiles((dir, name) -> name.contains(filterKeyWord));
+            if (zipFiles == null || zipFiles.length < 1) {
+                return;
+            }
+            List<File> orderedFiles = Arrays.stream(zipFiles).sorted((o1, o2) -> {
+                String o1TimeStr = o1.getName().substring(filterKeyWord.length(), o1.getName().lastIndexOf("."));
+                String o2TimeStr = o2.getName().substring(filterKeyWord.length(), o2.getName().lastIndexOf("."));
+                return -o1TimeStr.compareTo(o2TimeStr);// 取负值，获取倒序
+            }).collect(Collectors.toList());
+            if (orderedFiles.size() <= 1) {
+                return;
+            }
+            File newestFile = orderedFiles.get(0);
+            byte[] newestFileMD5 = getMD5DigestBytes(newestFile);
+            String newestFileName = newestFile.getName();
+            String newestFileDateStr = newestFileName.substring(filterKeyWord.length(), filterKeyWord.length() + 8);
+            Date last5Day;
+            try {
+                Date newestFileDate = new SimpleDateFormat("yyyyMMdd").parse(newestFileDateStr);
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(newestFileDate);
+                calendar.add(Calendar.DAY_OF_MONTH, -5);
+                last5Day = calendar.getTime();
+            } catch (Exception e) {
+                LOG.error("get last 5 day, transfer date error! detail: " + e.getMessage());
+                return;
+            }
+            orderedFiles.remove(newestFile);
+            List<File> deleteList = new ArrayList<>();
+            for (File item : orderedFiles) {
+                String dayStr = item.getName().substring(filterKeyWord.length() + 6, filterKeyWord.length() + 6 + 2);
+                if ("01".equals(dayStr) || "15".equals(dayStr)) {
+                    continue;
+                }
+                String fileDayStr = item.getName().substring(filterKeyWord.length(), filterKeyWord.length() + 8);
+                try {
+                    Date fileDay = new SimpleDateFormat("yyyyMMdd").parse(fileDayStr);
+                    if (fileDay.before(last5Day)) {
+                        deleteList.add(item);
+                        continue;
+                    }
+                } catch (ParseException e) {
+                    LOG.error("transfer date error! detail: " + e.getMessage());
+                    continue;
+                }
+                byte[] md5DigestBytes = getMD5DigestBytes(item);
+                if (Arrays.equals(newestFileMD5, md5DigestBytes)) {
+                    deleteList.add(item);
+                }
+            }
+            if (deleteList.isEmpty()) {
+                return;
+            }
+            for (File deleteItem : deleteList) {
+                boolean result = deleteItem.delete();
+                if (!result) {
+                    LOG.error("file cannot be deleted! file: " + deleteItem.getName());
+                }
+            }
+        }
+    }
+
+    private static byte[] getMD5DigestBytes(File newestFile) {
+        byte[] digest = null;
+        try (FileInputStream fileInputStream = new FileInputStream(newestFile)) {
+            MessageDigest md5 = MessageDigest.getInstance("MD5");
+            byte[] data = new byte[4096];
+            while (true) {
+                int readLength = fileInputStream.read(data);
+                if (readLength <= 0) {
+                    break;
+                }
+                md5.update(data, 0, readLength);
+            }
+            digest = md5.digest();
+        } catch (Exception e) {
+            LOG.error("md5 check file error! detail: " + e.getMessage());
+        }
+        return digest;
     }
 
     private static long getSecondGap(int hour, int minute, int second) {
